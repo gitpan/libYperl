@@ -1,0 +1,26 @@
+Changes
+examples/calculator
+examples/clock
+INSTALL
+lib/POE/Filter/Y.pm
+lib/Y.pm
+lib/Y/Button.pm
+lib/Y/Canvas.pm
+lib/Y/CheckBox.pm
+lib/Y/Console.pm
+lib/Y/const.ph
+lib/Y/Constants.pm
+lib/Y/Context.pm
+lib/Y/GridLayout.pm
+lib/Y/Label.pm
+lib/Y/Menu.pm
+lib/Y/Message.pm
+lib/Y/Object.pm
+lib/Y/Reply.pm
+lib/Y/Widget.pm
+lib/Y/Window.pm
+make_const.c
+Makefile.PL
+MANIFEST			This list of files
+META.yml			Module meta-data (added by MakeMaker)
+README

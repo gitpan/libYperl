@@ -1,0 +1,142 @@
+#!/usr/bin/perl -w
+
+package Clock;
+
+use lib '../lib';
+use strict;
+use Y;
+use Y::Window;
+use Y::Canvas;
+use POE;
+use Carp;
+
+use constant SIN30 => 0.5;
+use constant COS30 => 0.8660254;
+use constant M_PI  => (4 * atan2(1, 1));
+
+$SIG{__DIE__} = sub { Carp::cluck("@_") };
+
+sub new {
+    bless {
+        canvas          => undef,
+        width           => 0,
+        height          => 0,
+        next_alarm_time => 0,
+    }, shift;
+}
+
+sub initialise {
+    Y->initialise('build_gui');
+}
+
+sub build_gui {
+    my ($self, $kernel) = @_[OBJECT, KERNEL];
+
+    my $window = new Y::Window;
+    $window->set_property(title => "Clock");
+
+    $self->{canvas} = new Y::Canvas;
+    $self->{canvas}->request_size(128, 128);
+
+    $window->set_child($self->{canvas});
+
+    $window->connect_signal(requestClose => 'close');
+
+    $self->draw_clock;
+
+    $self->{canvas}->connect_signal(resize => 'resize');
+
+    $self->{next_alarm_time} = time + 1;
+    $kernel->alarm(timer => $self->{next_alarm_time}); 
+
+    $window->show;
+    $self->{window} = $window;
+}
+
+sub timer {
+    my ($self, $kernel) = @_[OBJECT, KERNEL];
+    $self->draw_clock;
+    $self->{alarm_id} = $kernel->alarm(timer => ++$self->{next_alarm_time}); 
+}
+
+sub draw_clock {
+    my ($self) = @_;
+
+    my $canvas = $self->{canvas};
+
+    ($self->{width}, $self->{height}) = $canvas->reset;
+
+    my $r = ($self->{width} < $self->{height}) ? $self->{width}/2 : $self->{height}/2;
+    my $cx = $self->{width} / 2;
+    my $cy = $self->{height} / 2;
+    my $t = $r / 8;
+    $t = 2 if $t < 2;
+    my $s = $r - $t;
+    my $ssin30 = $s * SIN30;
+    my $scos30 = $s * COS30;
+    my $tsin30 = $t * SIN30;
+    my $tcos30 = $t * COS30;
+
+    $canvas->set_pen_color(0xFF000000);
+    $canvas->draw_lines(
+        $cx + 1, $cy - $s, 0, -$t,
+        $cx + 1, $cy - $r, $t/2, 0,
+        $cx + $t/2 + 1, $cy - $r, -$t/2, $t,
+        $cx - 1, $cy - $s, 0, -$t,
+        $cx - 1, $cy - $r, -$t/2, 0,
+        $cx - $t/2 - 1, $cy - $r, $t/2, $t,
+        $cx + $ssin30, $cy - $scos30, $tsin30, -$tcos30,
+        $cx + $scos30, $cy - $ssin30, $tcos30, -$tsin30,
+        $cx + $s, $cy, $t, 0, 
+        $cx + $scos30, $cy + $ssin30, $tcos30, $tsin30,
+        $cx + $ssin30, $cy + $scos30, $tsin30, $tcos30,
+        $cx, $cy + $s, 0, $t, 
+        $cx - $ssin30, $cy + $scos30, -$tsin30, $tcos30,
+        $cx - $scos30, $cy + $ssin30, -$tcos30, $tsin30,
+        $cx - $s, $cy, -$t, 0,
+        $cx - $scos30, $cy - $ssin30, -$tcos30, -$tsin30,
+        $cx - $ssin30, $cy - $scos30, -$tsin30, -$tcos30
+    );
+
+    my @current_time = localtime;
+
+    my $sc_ang = $current_time[0] * M_PI / 30.0;
+    my $mn_ang = $current_time[1] * M_PI / 30.0 + $sc_ang / 60.0;
+    my $hr_ang = $current_time[2] * M_PI / 6.0 + $mn_ang / 12.0;
+
+    $canvas->set_pen_color(0xFF0000FF);
+    $canvas->draw_lines(
+        $cx, $cy, ($r * 0.5 * sin($hr_ang)),
+        (-$r * 0.5 * cos($hr_ang)),
+        $cx, $cy, ($r * 0.85 * sin($mn_ang)),
+        (-$r * 0.85 * cos($mn_ang))
+    );
+    $canvas->set_pen_color(0xCCFF0000);
+    $canvas->draw_line(
+        $cx, $cy,
+        ($r * 0.95 * sin($sc_ang)),
+        (-$r * 0.95 * cos($sc_ang))
+    );
+
+    $canvas->swap_buffers;
+}
+
+sub close {
+    $_[KERNEL]->post(Y => 'shutdown');
+    $_[KERNEL]->alarm('timer');
+}
+
+sub main {
+    my $c = new Clock;
+    POE::Session->create(
+        object_states => [
+            $c => { _start => 'initialise' },
+            $c => [qw(build_gui timer close)]
+        ],
+    );
+    Y->run;
+}
+
+main();
+
+

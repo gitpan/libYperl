@@ -1,0 +1,21 @@
+Requirements:
+
+Y Windows - http://www.y-windows.org
+WeakRef - http://search.cpan.org/~lukka/WeakRef-0.01/
+POE - http://poe.perl.org/
+
+After you have the above install run:
+    perl Makefile.PL
+    make
+    make install
+
+If you have Y Windows installed in a nonstandard path you will need to
+specify that like this:
+    perl Makefile.PL INC=-I/path/to/y/prefix
+
+This is needed to compile a simple C program to convert Y Windows header to
+a perl modules with proper exports and such.
+
+Good Luck!
+
+Scott

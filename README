@@ -1,0 +1,9 @@
+
+    libYperl
+    ========
+
+This is a pure perl client for Y Windows. Y Windows is a replacement, that is
+currently in the works, for XFree86 and the X11 protocol.
+http://www.y-windows.org/
+
+

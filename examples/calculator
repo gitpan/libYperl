@@ -1,0 +1,282 @@
+#!/usr/bin/perl -w
+
+package Calculator;
+
+use lib '../lib';
+use strict;
+use Y;
+use Y::Window;
+use Y::Label;
+use Y::GridLayout;
+use Y::Button;
+use POE;
+use Carp;
+
+use constant MULTIPLY => 0;
+use constant DIVIDE   => 1;
+use constant PLUS     => 2;
+use constant MINUS    => 3;
+use constant EQUALS   => 4;
+
+$SIG{__DIE__} = sub { Carp::cluck("@_") };
+
+sub new {
+    bless {
+        operators     => [],
+        operands      => [],
+        current       => 0,
+        decimal_place => 0,
+        result        => undef,
+    }, shift;
+}
+
+sub initialise {
+    Y->initialise('build_gui');
+}
+
+sub build_gui {
+    my $self = $_[OBJECT];
+
+    my $window = new Y::Window;
+    $window->set_property(title => "Calculator");
+
+    my $grid = new Y::GridLayout;
+    $window->set_child($grid);
+
+    $window->connect_signal(requestClose => 'close');
+
+    $self->{result} = new Y::Label;
+    $self->{result}->set_property(text => 0);
+    $self->{result}->set_property(alignment => 'right');
+    $grid->add_widget($self->{result}, 0, 0, 4, 1);
+
+    my $button0 = new Y::Button;
+    $button0->set_property(text => "0");
+    $button0->connect_signal(clicked => 'number_clicked', 0);
+    $grid->add_widget($button0, 0, 5, 2, 1);
+
+    my $button1 = new Y::Button;
+    $button1->set_property(text => "1");
+    $button1->connect_signal(clicked => 'number_clicked', 1);
+    $grid->add_widget($button1, 0, 4);
+
+    my $button2 = new Y::Button;
+    $button2->set_property(text => "2");
+    $button2->connect_signal(clicked => 'number_clicked', 2);
+    $grid->add_widget($button2, 1, 4);
+
+    my $button3 = new Y::Button;
+    $button3->set_property(text => "3");
+    $button3->connect_signal(clicked => 'number_clicked', 3);
+    $grid->add_widget($button3, 2, 4);
+
+    my $button4 = new Y::Button;
+    $button4->set_property(text => "4");
+    $button4->connect_signal(clicked => 'number_clicked', 4);
+    $grid->add_widget($button4, 0, 3);
+
+    my $button5 = new Y::Button;
+    $button5->set_property(text => "5");
+    $button5->connect_signal(clicked => 'number_clicked', 5);
+    $grid->add_widget($button5, 1, 3);
+
+    my $button6 = new Y::Button;
+    $button6->set_property(text => "6");
+    $button6->connect_signal(clicked => 'number_clicked', 6);
+    $grid->add_widget($button6, 2, 3);
+
+    my $button7 = new Y::Button;
+    $button7->set_property(text => "7");
+    $button7->connect_signal(clicked => 'number_clicked', 7);
+    $grid->add_widget($button7, 0, 2);
+
+    my $button8 = new Y::Button;
+    $button8->set_property(text => "8");
+    $button8->connect_signal(clicked => 'number_clicked', 8);
+    $grid->add_widget($button8, 1, 2);
+
+    my $button9 = new Y::Button;
+    $button9->set_property(text => "9");
+    $button9->connect_signal(clicked => 'number_clicked', 9);
+    $grid->add_widget($button9, 2, 2);
+
+    my $button_dot = new Y::Button;
+    $button_dot->set_property(text => ".");
+    $button_dot->connect_signal(clicked => 'point_clicked');
+    $grid->add_widget($button_dot, 2, 5);
+
+    my $button_eq = new Y::Button;
+    $button_eq->set_property(text => "=");
+    $button_eq->connect_signal(clicked => 'equals_clicked');
+    $grid->add_widget($button_eq, 3, 4, 1, 2);
+
+    my $button_add = new Y::Button;
+    $button_add->set_property(text => "+");
+    $button_add->connect_signal(clicked => 'operator_clicked', PLUS);
+    $grid->add_widget($button_add, 3, 2, 1, 2);
+
+    my $button_sub = new Y::Button;
+    $button_sub->set_property(text => "-");
+    $button_sub->connect_signal(clicked => 'operator_clicked', MINUS);
+    $grid->add_widget($button_sub, 3, 1);
+
+    my $button_mul = new Y::Button;
+    $button_mul->set_property(text => "x");
+    $button_mul->connect_signal(clicked => 'operator_clicked', MULTIPLY);
+    $grid->add_widget($button_mul, 2, 1);
+
+    my $button_div = new Y::Button;
+    $button_div->set_property(text => "/");
+    $button_div->connect_signal(clicked => 'operator_clicked', DIVIDE);
+    $grid->add_widget($button_div, 1, 1);
+
+    my $button_clr = new Y::Button;
+    $button_clr->set_property(text => 'C');
+    $button_clr->connect_signal(clicked => 'clear_clicked');
+    $grid->add_widget($button_clr, 0, 1);
+
+    $window->show;
+    $self->{window} = $window;
+}
+
+sub number_clicked {
+    my ($self, $context, $event, $number) = @_[OBJECT, ARG0 .. $#_];
+    if ($self->{decimal_place} > 0) {
+        $self->{current} += $number / (10.0 ** $self->{decimal_place});
+        $self->{decimal_place}++;
+    }
+    else {
+        $self->{current} = ($self->{current} * 10) + $number;
+    }
+    $self->{result}->set_property(text => $self->{current});
+    $context->handled;
+}
+
+sub point_clicked {
+    my ($self, $context, $event, $number) = @_[OBJECT, ARG0 .. $#_];
+    if (!$self->{decimal_place}) {
+        $self->{decimal_place} = 1;
+        $self->{current} .= ".";
+    }
+    $self->{result}->set_property(text => $self->{current});
+    $context->handled;
+}
+
+sub clear_clicked {
+    my ($self, $context, $event) = @_[OBJECT, ARG0 .. $#_];
+    $self->{operands} = [];
+    $self->{operators} = [];
+    $self->{decimal_place} = 0;
+    $self->{current} = 0;
+    $self->{result}->set_property(text => 0);
+    $context->handled;
+}
+
+sub operator_clicked {
+    my ($self, $context, $event, $op) = @_[OBJECT, ARG0 .. $#_];
+
+    push @{$self->{operands}}, $self->{current};
+    $self->evaluate($op);
+
+    $self->{result}->set_property(
+        text => $self->{operands}[$#{$self->{operands}}] || 0
+    );
+
+    push @{$self->{operators}}, $op;
+
+    $self->{current} = 0;
+    $self->{decimal_place} = 0;
+
+    $context->handled;
+}
+
+sub equals_clicked {
+    my ($self, $context, $event) = @_[OBJECT, ARG0 .. $#_];
+
+    push @{$self->{operands}}, $self->{current};
+    $self->evaluate(EQUALS);
+
+    $self->{result}->set_property(
+        text => $self->{operands}[$#{$self->{operands}}] || 0
+    );
+
+    pop @{$self->{operands}};
+
+    $self->{current} = 0;
+    $self->{decimal_place} = 0;
+
+    $context->handled;
+}
+
+sub close {
+    $_[KERNEL]->post(Y => 'shutdown');
+}
+
+sub evaluate {
+    my ($self, $max) = @_;
+    my $operands = $self->{operands};
+    my $operators = $self->{operators};
+
+    while (@$operators and operator_less_than($operators->[$#$operators], $max)) {
+        my $operand1 = pop @$operands;
+        my $operand2 = pop @$operands;
+        my $op = pop @$operators;
+        if ($op == PLUS) {
+            push @$operands, ($operand2 + $operand1);
+        }
+        elsif ($op == MINUS) {
+            push @$operands, ($operand2 - $operand1);
+        }
+        elsif ($op == MULTIPLY) {
+            push @$operands, ($operand2 * $operand1);
+        }
+        elsif ($op == DIVIDE) {
+            $operand1 ||= 1;
+            push @$operands, ($operand2 / $operand1);
+        }
+    }
+}
+
+sub operator_less_than {
+    my ($op1, $op2) = @_;
+    # { x, / }  <  { +, - }  <  { = }
+    if ($op1 == MULTIPLY or $op1 == DIVIDE) {
+        if ($op2 == MULTIPLY or $op2 == DIVIDE) {
+            return 0;
+        }
+        else {
+            return 1;
+        }
+    }
+    elsif ($op1 == PLUS or $op1 == MINUS) {
+        if ($op2 == EQUALS) {
+            return 1;
+        }
+        else {
+            return 0;
+        }
+    }
+    else {
+        return 0;
+    }
+}
+
+sub main {
+    my $c = new Calculator;
+    POE::Session->create(
+        object_states => [
+            $c => { _start => 'initialise' },
+            $c => [qw(
+                build_gui        number_clicked
+                point_clicked    clear_clicked
+                operator_clicked equals_clicked
+                close
+            )]
+        ],
+    );
+    Y->run;
+}
+
+main();
+
+

@@ -1,0 +1,12 @@
+Revision history for Perl extension libYperl.
+
+0.03  Sat Mar 13 08:03:07 AM 2004
+    - Rewrote large portions to work with the new sequence based events.
+    - Now requires the perl module WeakRef, get it at your local CPAN mirror.
+    - Widgets are now destroyed if no reference to them exists. This means
+      you must keep a reference to your top level widget atleast.
+
+0.03  Fri Feb 27 10:17:58 PM 2004
+    - Fixed some bugs in the calculator
+    - Support for new removeWidget in GridLayout
+    - Added a README and this file
